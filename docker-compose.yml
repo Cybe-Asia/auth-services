@@ -1,0 +1,7 @@
+services:
+  auth-service:
+    build: .
+    ports:
+      - "8083:8083"
+    env_file:
+      - .env
