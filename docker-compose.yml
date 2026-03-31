@@ -4,4 +4,4 @@ services:
     ports:
       - "8083:8083"
     env_file:
-      - .env
+      - .env.local
