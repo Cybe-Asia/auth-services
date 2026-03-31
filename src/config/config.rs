@@ -12,9 +12,15 @@ pub struct AppConfig {
 
 impl AppConfig {
     pub fn from_env() -> Result<Self, String> {
-        let app_env = env::var("APP_ENV").unwrap_or_else(|_| "local".to_string());
-        let env_file = format!(".env.{app_env}");
-        dotenv::from_filename(&env_file).ok();
+        let env_file = match env::var("APP_ENV").unwrap_or_else(|_| "local".to_string()).as_str() {
+            "local" => ".env.local",
+            "dev" => ".env.dev",
+            "staging" => ".env.staging",
+            "production" => ".env.production",
+            _ => ".env.local",
+        };
+
+        dotenv::from_filename(env_file).ok();
         dotenv::dotenv().ok();
 
         let server_port = env::var("SERVER_PORT")

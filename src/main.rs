@@ -7,6 +7,8 @@ use tower_http::{
     trace::TraceLayer,
 };
 use tracing::info;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 mod clients {
     pub mod google_oauth_client;
@@ -16,6 +18,7 @@ mod database {
     pub mod neo4j;
 }
 mod dto {
+    pub mod create_account_request;
     pub mod create_password_request;
     pub mod google_login_request;
     pub mod login_request;
@@ -44,6 +47,55 @@ mod utils {
 #[derive(Clone)]
 pub struct AppState {
     pub auth_service: services::auth_service::AuthService,
+}
+
+#[derive(OpenApi)]
+#[openapi(
+    paths(
+        handlers::auth_handler::create_account,
+        handlers::auth_handler::create_password,
+        handlers::auth_handler::login,
+        handlers::auth_handler::google_login,
+    ),
+    components(
+        schemas(
+            dto::create_account_request::CreateAccountRequest,
+            dto::create_password_request::CreatePasswordRequest,
+            dto::login_request::LoginRequest,
+            dto::google_login_request::GoogleLoginRequest,
+            handlers::auth_handler::CreateAccountData,
+            handlers::auth_handler::CreatePasswordData,
+            handlers::auth_handler::LoginData,
+            handlers::auth_handler::GoogleLoginData,
+            utils::response::ApiResponseCreateAccount,
+            utils::response::ApiResponseCreatePassword,
+            utils::response::ApiResponseLogin,
+            utils::response::ApiResponseGoogleLogin,
+        )
+    ),
+    modifiers(&SecurityAddon),
+    tags(
+        (name = "auth", description = "Authentication and account management")
+    )
+)]
+pub struct ApiDoc;
+
+struct SecurityAddon;
+
+impl utoipa::Modify for SecurityAddon {
+    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        if let Some(components) = openapi.components.as_mut() {
+            components.add_security_scheme(
+                "bearer_auth",
+                utoipa::openapi::security::SecurityScheme::Http(
+                    utoipa::openapi::security::HttpBuilder::new()
+                        .scheme(utoipa::openapi::security::HttpAuthScheme::Bearer)
+                        .bearer_format("JWT")
+                        .build(),
+                ),
+            )
+        }
+    }
 }
 
 #[tokio::main]
@@ -78,6 +130,7 @@ async fn main() {
     let state = AppState { auth_service };
 
     let app: Router = routes::auth_routes::auth_routes()
+        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
         .with_state(state)
         .layer(
             CorsLayer::new()

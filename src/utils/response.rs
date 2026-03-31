@@ -1,7 +1,14 @@
 use axum::Json;
 use serde::Serialize;
+use utoipa::ToSchema;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
+#[aliases(
+    ApiResponseCreateAccount = ApiResponse<crate::handlers::auth_handler::CreateAccountData>,
+    ApiResponseCreatePassword = ApiResponse<crate::handlers::auth_handler::CreatePasswordData>,
+    ApiResponseLogin = ApiResponse<crate::handlers::auth_handler::LoginData>,
+    ApiResponseGoogleLogin = ApiResponse<crate::handlers::auth_handler::GoogleLoginData>
+)]
 pub struct ApiResponse<T>
 where
     T: Serialize,

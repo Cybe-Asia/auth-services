@@ -1,22 +1,30 @@
-use axum::{extract::State, http::HeaderMap, Json};
+use axum::{extract::State, http::HeaderMap, response::IntoResponse, Json};
 use serde::Serialize;
+use utoipa::ToSchema;
 
 use crate::{
     dto::{
+        create_account_request::CreateAccountRequest,
         create_password_request::CreatePasswordRequest, google_login_request::GoogleLoginRequest,
         login_request::LoginRequest,
     },
+    services::auth_service::CreateAccountResult,
     utils::response::ApiResponse,
     AppState,
 };
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
+pub struct CreateAccountData {
+    pub email: String,
+}
+
+#[derive(Serialize, ToSchema)]
 pub struct CreatePasswordData {
     #[serde(rename = "passwordCreated")]
     pub password_created: bool,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct LoginData {
     #[serde(rename = "jwtAccessToken")]
     pub jwt_access_token: String,
@@ -24,7 +32,7 @@ pub struct LoginData {
     pub refresh_token: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ToSchema)]
 pub struct GoogleLoginData {
     #[serde(rename = "jwtAccessToken")]
     pub jwt_access_token: String,
@@ -44,6 +52,48 @@ fn extract_bearer_token(headers: &HeaderMap) -> Result<String, String> {
     Ok(value.to_string())
 }
 
+/// Create new account
+#[utoipa::path(
+    post,
+    path = "/api/v1/auth-service/createAccount",
+    request_body = CreateAccountRequest,
+    responses(
+        (status = 200, description = "Account created successfully", body = ApiResponseCreateAccount),
+        (status = 204, description = "Email already exists"),
+        (status = 500, description = "Internal server error", body = ApiResponseCreateAccount)
+    )
+)]
+pub async fn create_account(
+    State(state): State<AppState>,
+    Json(payload): Json<CreateAccountRequest>,
+) -> axum::response::Response {
+    match state.auth_service.create_account(&payload.email).await {
+        Ok(CreateAccountResult::Created) => {
+            ApiResponse::success(CreateAccountData {
+                email: payload.email,
+            })
+            .into_response()
+        }
+        Ok(CreateAccountResult::AlreadyExists) => {
+            axum::http::StatusCode::NO_CONTENT.into_response()
+        }
+        Err(e) => ApiResponse::<CreateAccountData>::failure(500, e).into_response(),
+    }
+}
+
+/// Create new password after account creation
+#[utoipa::path(
+    post,
+    path = "/api/v1/auth-service/createPassword",
+    request_body = CreatePasswordRequest,
+    responses(
+        (status = 200, description = "Password created successfully", body = ApiResponseCreatePassword),
+        (status = 500, description = "Internal server error", body = ApiResponseCreatePassword)
+    ),
+    security(
+        ("bearer_auth" = [])
+    )
+)]
 pub async fn create_password(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -64,6 +114,16 @@ pub async fn create_password(
     }
 }
 
+/// Login with email and password
+#[utoipa::path(
+    post,
+    path = "/api/v1/auth-service/login",
+    request_body = LoginRequest,
+    responses(
+        (status = 200, description = "Login successful", body = ApiResponseLogin),
+        (status = 500, description = "Login failed", body = ApiResponseLogin)
+    )
+)]
 pub async fn login(
     State(state): State<AppState>,
     Json(payload): Json<LoginRequest>,
@@ -81,6 +141,16 @@ pub async fn login(
     }
 }
 
+/// Login with Google OAuth token
+#[utoipa::path(
+    post,
+    path = "/api/v1/googleLogin",
+    request_body = GoogleLoginRequest,
+    responses(
+        (status = 200, description = "Google login successful", body = ApiResponseGoogleLogin),
+        (status = 500, description = "Google login failed", body = ApiResponseGoogleLogin)
+    )
+)]
 pub async fn google_login(
     State(state): State<AppState>,
     Json(payload): Json<GoogleLoginRequest>,

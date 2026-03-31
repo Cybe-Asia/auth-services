@@ -21,6 +21,11 @@ pub struct LoginTokens {
     pub refresh_token: String,
 }
 
+pub enum CreateAccountResult {
+    Created,
+    AlreadyExists,
+}
+
 impl AuthService {
     pub fn new(graph: Arc<Graph>, jwt_secret: String, google_client: GoogleOAuthClient) -> Self {
         Self {
@@ -28,6 +33,18 @@ impl AuthService {
             jwt_secret,
             google_client,
         }
+    }
+
+    pub async fn create_account(&self, email: &str) -> Result<CreateAccountResult, String> {
+        info!(email = %email, "create account attempt");
+
+        let existing = user_repository::find_user_by_email(self.graph.as_ref(), email).await?;
+        if existing.is_some() {
+            return Ok(CreateAccountResult::AlreadyExists);
+        }
+
+        user_repository::create_account(self.graph.as_ref(), email).await?;
+        Ok(CreateAccountResult::Created)
     }
 
     pub async fn create_password(
@@ -40,15 +57,8 @@ impl AuthService {
 
         info!(email = %email, "password creation");
 
-        let existing = user_repository::find_user_by_email(self.graph.as_ref(), &email).await?;
-        if existing.is_some() {
-            return Err("User already exists".to_string());
-        }
-
         let password_hash = password::hash_password(new_password)?;
-        let _user =
-            user_repository::create_user_with_password(self.graph.as_ref(), &email, &password_hash)
-                .await?;
+        user_repository::update_password(self.graph.as_ref(), &email, &password_hash).await?;
         Ok(true)
     }
 
@@ -92,7 +102,7 @@ impl AuthService {
 
         let user = match user_repository::find_user_by_email(self.graph.as_ref(), &email).await? {
             Some(u) => u,
-            None => user_repository::create_user_google(self.graph.as_ref(), &email).await?,
+            None => user_repository::create_account(self.graph.as_ref(), &email).await?,
         };
 
         let jwt_access_token =

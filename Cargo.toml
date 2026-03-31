@@ -12,10 +12,12 @@ neo4rs = "0.6"
 dotenv = "0.15"
 uuid = { version = "1", features = ["v4", "serde"] }
 jsonwebtoken = "9"
-argon2 = "0.5"
+bcrypt = "0.15"
 rand_core = { version = "0.6", features = ["getrandom"] }
 reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 tower = "0.4"
 tower-http = { version = "0.4.4", features = ["cors", "trace"] }
+utoipa = { version = "4", features = ["axum_extras"] }
+utoipa-swagger-ui = { version = "4", features = ["axum"] }
