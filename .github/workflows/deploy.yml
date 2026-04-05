@@ -1,0 +1,70 @@
+name: Deploy Auth Service
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+      - "release-*"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set Environment & Image Tag
+        id: vars
+        run: |
+          if [[ "${GITHUB_REF}" == "refs/heads/dev" ]]; then
+            echo "ENV=dev" >> $GITHUB_OUTPUT
+          elif [[ "${GITHUB_REF}" == refs/heads/release-* ]]; then
+            echo "ENV=staging" >> $GITHUB_OUTPUT
+          else
+            echo "ENV=prod" >> $GITHUB_OUTPUT
+          fi
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          echo "IMAGE_TAG=$(echo "${GITHUB_REF##*/}-${SHORT_SHA}")" >> $GITHUB_OUTPUT
+
+      - name: Login to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Docker Image
+        run: |
+          docker build -t ghcr.io/cybe-asia/auth-services:${{ steps.vars.outputs.IMAGE_TAG }} .
+
+      - name: Push Docker Image
+        run: |
+          docker push ghcr.io/cybe-asia/auth-services:${{ steps.vars.outputs.IMAGE_TAG }}
+
+      - name: Update GitOps Repository
+        if: steps.vars.outputs.ENV == 'dev'
+        run: |
+          git config --global user.email "ci-bot@cybe-asia.github"
+          git config --global user.name "CI Bot"
+
+          git clone https://x-access-token:${{ secrets.GITOPS_TOKEN }}@github.com/Cybe-Asia/digital-school-moodle-gitops.git gitops-repo
+          cd gitops-repo
+
+          # Install kustomize
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          mv kustomize /usr/local/bin/
+
+          # Update image tag for auth-services in dev overlay
+          cd overlays/dev
+          kustomize edit set image ghcr.io/cybe-asia/auth-services=ghcr.io/cybe-asia/auth-services:${{ steps.vars.outputs.IMAGE_TAG }}
+          cd ../..
+
+          git add overlays/dev/kustomization.yaml
+          git commit -m "chore(auth): update image tag to ${{ steps.vars.outputs.IMAGE_TAG }} [skip ci]"
+          git push
