@@ -8,6 +8,7 @@ on:
       - "release-*"
   workflow_dispatch:
 
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -55,20 +56,28 @@ jobs:
       - name: Update GitOps Repository
         if: steps.vars.outputs.ENV == 'dev'
         run: |
+          set -e
           git config --global user.email "ci-bot@cybe-asia.github"
           git config --global user.name "CI Bot"
 
+          echo "Cloning GitOps repository..."
           git clone https://x-access-token:${{ secrets.GITOPS_TOKEN }}@github.com/Cybe-Asia/digital-school-moodle-gitops.git gitops-repo
+          
           cd gitops-repo/overlays/dev
+          
+          echo "Current image tag in kustomization.yaml before update:"
+          grep "newTag:" kustomization.yaml || echo "No newTag found"
 
-          # Update image tag for auth-services in dev overlay
+          echo "Updating image tag for auth-services to ${{ steps.vars.outputs.IMAGE_TAG }}..."
           kustomize edit set image ghcr.io/cybe-asia/auth-services=ghcr.io/cybe-asia/auth-services:${{ steps.vars.outputs.IMAGE_TAG }}
 
-          # Check for changes
+          echo "Checking for changes..."
           if git diff --quiet kustomization.yaml; then
-            echo "No changes to kustomization.yaml, skipping commit."
+            echo "No changes detected in kustomization.yaml. Skipping push."
           else
+            echo "Changes detected. Committing and pushing..."
             git add kustomization.yaml
             git commit -m "chore(auth): update image tag to ${{ steps.vars.outputs.IMAGE_TAG }} [skip ci]"
-            git push
+            git push origin main
           fi
+
