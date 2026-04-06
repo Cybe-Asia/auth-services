@@ -81,6 +81,6 @@ jobs:
             echo "Changes detected. Committing and pushing..."
             git add kustomization.yaml
             git commit -m "chore(auth): update image tag to ${{ steps.vars.outputs.IMAGE_TAG }} [skip ci]"
-            git push origin main
+            git push origin dev
           fi
 
