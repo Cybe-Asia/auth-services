@@ -6,6 +6,7 @@ on:
       - dev
       - main
       - "release-*"
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -17,7 +18,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set Environment & Image Tag
         id: vars
@@ -33,7 +34,7 @@ jobs:
           echo "IMAGE_TAG=$(echo "${GITHUB_REF##*/}-${SHORT_SHA}")" >> $GITHUB_OUTPUT
 
       - name: Login to GHCR
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -47,6 +48,10 @@ jobs:
         run: |
           docker push ghcr.io/cybe-asia/auth-services:${{ steps.vars.outputs.IMAGE_TAG }}
 
+      - name: Setup Kustomize
+        if: steps.vars.outputs.ENV == 'dev'
+        uses: imranismail/setup-kustomize@v2
+
       - name: Update GitOps Repository
         if: steps.vars.outputs.ENV == 'dev'
         run: |
@@ -54,17 +59,16 @@ jobs:
           git config --global user.name "CI Bot"
 
           git clone https://x-access-token:${{ secrets.GITOPS_TOKEN }}@github.com/Cybe-Asia/digital-school-moodle-gitops.git gitops-repo
-          cd gitops-repo
-
-          # Install kustomize
-          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
-          mv kustomize /usr/local/bin/
+          cd gitops-repo/overlays/dev
 
           # Update image tag for auth-services in dev overlay
-          cd overlays/dev
           kustomize edit set image ghcr.io/cybe-asia/auth-services=ghcr.io/cybe-asia/auth-services:${{ steps.vars.outputs.IMAGE_TAG }}
-          cd ../..
 
-          git add overlays/dev/kustomization.yaml
-          git commit -m "chore(auth): update image tag to ${{ steps.vars.outputs.IMAGE_TAG }} [skip ci]"
-          git push
+          # Check for changes
+          if git diff --quiet kustomization.yaml; then
+            echo "No changes to kustomization.yaml, skipping commit."
+          else
+            git add kustomization.yaml
+            git commit -m "chore(auth): update image tag to ${{ steps.vars.outputs.IMAGE_TAG }} [skip ci]"
+            git push
+          fi
