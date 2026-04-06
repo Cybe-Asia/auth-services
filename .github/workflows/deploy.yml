@@ -43,11 +43,14 @@ jobs:
 
       - name: Build Docker Image
         run: |
-          docker build -t ghcr.io/cybe-asia/auth-services:${{ steps.vars.outputs.IMAGE_TAG }} .
+          IMAGE_NAME=$(echo "ghcr.io/${{ github.repository_owner }}/auth-services" | tr '[:upper:]' '[:lower:]')
+          docker build -t ${IMAGE_NAME}:${{ steps.vars.outputs.IMAGE_TAG }} .
 
       - name: Push Docker Image
         run: |
-          docker push ghcr.io/cybe-asia/auth-services:${{ steps.vars.outputs.IMAGE_TAG }}
+          IMAGE_NAME=$(echo "ghcr.io/${{ github.repository_owner }}/auth-services" | tr '[:upper:]' '[:lower:]')
+          docker push ${IMAGE_NAME}:${{ steps.vars.outputs.IMAGE_TAG }}
+
 
       - name: Setup Kustomize
         if: steps.vars.outputs.ENV == 'dev'
