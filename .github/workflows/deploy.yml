@@ -64,9 +64,10 @@ jobs:
           git config --global user.name "CI Bot"
 
           echo "Cloning GitOps repository..."
-          git clone https://x-access-token:${{ secrets.GITOPS_TOKEN }}@github.com/Cybe-Asia/digital-school-moodle-gitops.git gitops-repo
-          
-          cd gitops-repo/overlays/dev
+          git clone https://x-access-token:${{ secrets.GITOPS_TOKEN }}@github.com/Cybe-Asia/digital-school-gitops.git gitops-repo
+          cd gitops-repo
+          git checkout dev
+          cd overlays/dev
           
           echo "Current image tag in kustomization.yaml before update:"
           grep "newTag:" kustomization.yaml || echo "No newTag found"
