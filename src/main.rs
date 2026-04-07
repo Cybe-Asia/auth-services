@@ -130,7 +130,7 @@ async fn main() {
     let state = AppState { auth_service };
 
     let app: Router = routes::auth_routes::auth_routes()
-        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
+        .merge(SwaggerUi::new("/api/v1/auth-service/swagger-ui").url("/api/v1/auth-service/api-docs/openapi.json", ApiDoc::openapi()))
         .with_state(state)
         .layer(
             CorsLayer::new()
