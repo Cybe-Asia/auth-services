@@ -1,7 +1,8 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use axum::{Router, Server};
+use axum::{routing::get, Router, Server};
+use serde_json::json;
 use tower_http::{
     cors::{Any, CorsLayer},
     trace::TraceLayer,
@@ -52,6 +53,7 @@ pub struct AppState {
 #[derive(OpenApi)]
 #[openapi(
     paths(
+        health_check,
         handlers::auth_handler::create_account,
         handlers::auth_handler::create_password,
         handlers::auth_handler::login,
@@ -98,6 +100,17 @@ impl utoipa::Modify for SecurityAddon {
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/auth-service/health",
+    responses(
+        (status = 200, description = "Service is healthy")
+    )
+)]
+async fn health_check() -> impl axum::response::IntoResponse {
+    axum::response::Json(json!({ "status": "ok" }))
+}
+
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt()
@@ -130,6 +143,7 @@ async fn main() {
     let state = AppState { auth_service };
 
     let app = Router::new()
+        .route("/api/v1/auth-service/health", get(health_check))
         .merge(routes::auth_routes::auth_routes())
         .merge(SwaggerUi::new("/api/v1/auth-service/swagger-ui").url("/api/v1/auth-service/api-docs/openapi.json", ApiDoc::openapi()))
         .with_state(state)
