@@ -129,7 +129,8 @@ async fn main() {
         services::auth_service::AuthService::new(graph, config.jwt_secret.clone(), google_client);
     let state = AppState { auth_service };
 
-    let app: Router = routes::auth_routes::auth_routes()
+    let app = Router::new()
+        .merge(routes::auth_routes::auth_routes())
         .merge(SwaggerUi::new("/api/v1/auth-service/swagger-ui").url("/api/v1/auth-service/api-docs/openapi.json", ApiDoc::openapi()))
         .with_state(state)
         .layer(
