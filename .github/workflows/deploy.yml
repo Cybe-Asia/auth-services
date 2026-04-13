@@ -26,10 +26,13 @@ jobs:
         run: |
           if [[ "${GITHUB_REF}" == "refs/heads/dev" ]]; then
             echo "ENV=dev" >> $GITHUB_OUTPUT
+            echo "OVERLAY=dev" >> $GITHUB_OUTPUT
           elif [[ "${GITHUB_REF}" == refs/heads/release-* ]]; then
             echo "ENV=staging" >> $GITHUB_OUTPUT
+            echo "OVERLAY=staging" >> $GITHUB_OUTPUT
           else
-            echo "ENV=prod" >> $GITHUB_OUTPUT
+            echo "ENV=production" >> $GITHUB_OUTPUT
+            echo "OVERLAY=production" >> $GITHUB_OUTPUT
           fi
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
           echo "IMAGE_TAG=$(echo "${GITHUB_REF##*/}-${SHORT_SHA}")" >> $GITHUB_OUTPUT
@@ -53,35 +56,30 @@ jobs:
 
 
       - name: Setup Kustomize
-        if: steps.vars.outputs.ENV == 'dev'
         uses: imranismail/setup-kustomize@v2
 
       - name: Update GitOps Repository
-        if: steps.vars.outputs.ENV == 'dev'
         run: |
           set -e
-          git config --global user.email "ci-bot@cybe-asia.github"
-          git config --global user.name "CI Bot"
+          git config --global user.email "arief.n@cybe.tech"
+          git config --global user.name "arief.n"
+
+          OVERLAY="${{ steps.vars.outputs.OVERLAY }}"
 
           echo "Cloning GitOps repository..."
           git clone https://x-access-token:${{ secrets.GITOPS_TOKEN }}@github.com/Cybe-Asia/digital-school-gitops.git gitops-repo
           cd gitops-repo
           git checkout dev
-          cd overlays/dev
-          
-          echo "Current image tag in kustomization.yaml before update:"
-          grep "newTag:" kustomization.yaml || echo "No newTag found"
+          cd "overlays/${OVERLAY}"
 
-          echo "Updating image tag for auth-services to ${{ steps.vars.outputs.IMAGE_TAG }}..."
+          echo "Updating image tag for auth-services to ${{ steps.vars.outputs.IMAGE_TAG }} in overlays/${OVERLAY}..."
           kustomize edit set image ghcr.io/cybe-asia/auth-services=ghcr.io/cybe-asia/auth-services:${{ steps.vars.outputs.IMAGE_TAG }}
 
-          echo "Checking for changes..."
           if git diff --quiet kustomization.yaml; then
-            echo "No changes detected in kustomization.yaml. Skipping push."
+            echo "No changes detected. Skipping push."
           else
-            echo "Changes detected. Committing and pushing..."
             git add kustomization.yaml
-            git commit -m "chore(auth): update image tag to ${{ steps.vars.outputs.IMAGE_TAG }} [skip ci]"
+            git commit -m "chore(auth): update ${OVERLAY} image tag to ${{ steps.vars.outputs.IMAGE_TAG }} [skip ci]"
             git push origin dev
           fi
 
