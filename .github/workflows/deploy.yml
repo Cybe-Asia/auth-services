@@ -7,7 +7,6 @@ name: Build & Deploy
 on:
   push:
     branches:
-      - dev
       - main
       - "release-*"
   workflow_dispatch:
@@ -37,9 +36,8 @@ jobs:
           echo "image_ref=${IMAGE_NAME}:${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
 
           case "${GITHUB_REF}" in
-            refs/heads/dev)          OVERLAY="lab/dev" ;;
+            refs/heads/main)         OVERLAY="lab/dev" ;;
             refs/heads/release-*)    OVERLAY="lab/staging" ;;
-            refs/heads/main)         OVERLAY="overlays/production" ;;
             *)                       OVERLAY="" ;;
           esac
           echo "overlay_path=${OVERLAY}" >> "$GITHUB_OUTPUT"
@@ -87,9 +85,8 @@ jobs:
           set -e
           git config --global user.email "ci-bot@cybe-asia.github"
           git config --global user.name "CI Bot"
-          git clone "https://x-access-token:${{ secrets.GITOPS_TOKEN }}@github.com/Cybe-Asia/digital-school-gitops.git" gitops-repo
+          git clone --branch main --depth 1 "https://x-access-token:${{ secrets.GITOPS_TOKEN }}@github.com/Cybe-Asia/digital-school-gitops.git" gitops-repo
           cd gitops-repo
-          git checkout dev
           cd "${{ steps.vars.outputs.overlay_path }}"
           kustomize edit set image "${{ env.KUSTOMIZE_IMAGE_KEY }}=${{ steps.vars.outputs.image_ref }}"
           if git diff --quiet kustomization.yaml; then
@@ -98,4 +95,4 @@ jobs:
           fi
           git add kustomization.yaml
           git commit -m "chore(${{ env.SERVICE_NAME }}): bump ${{ steps.vars.outputs.overlay_path }} to ${{ steps.vars.outputs.image_tag }} [skip ci]"
-          git push origin dev
+          git push origin main
