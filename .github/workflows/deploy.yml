@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - main
+      - "qa/**"
       - "release-*"
   workflow_dispatch:
 
@@ -35,8 +36,12 @@ jobs:
           echo "image_name=${IMAGE_NAME}" >> "$GITHUB_OUTPUT"
           echo "image_ref=${IMAGE_NAME}:${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
 
+          # Branch → overlay mapping. A qa/* branch pins the build to
+          # lab/test ONLY — no auto-promote cascade fires because the
+          # auto-promote-lab workflow is triggered on lab/dev paths.
           case "${GITHUB_REF}" in
             refs/heads/main)         OVERLAY="lab/dev" ;;
+            refs/heads/qa/*)         OVERLAY="lab/test" ;;
             refs/heads/release-*)    OVERLAY="lab/staging" ;;
             *)                       OVERLAY="" ;;
           esac
@@ -94,5 +99,9 @@ jobs:
             exit 0
           fi
           git add kustomization.yaml
-          git commit -m "chore(${{ env.SERVICE_NAME }}): bump ${{ steps.vars.outputs.overlay_path }} to ${{ steps.vars.outputs.image_tag }} [skip ci]"
+          MSG="chore(${{ env.SERVICE_NAME }}): bump ${{ steps.vars.outputs.overlay_path }} to ${{ steps.vars.outputs.image_tag }} [skip ci]"
+          if [ "${{ steps.vars.outputs.overlay_path }}" = "lab/test" ]; then
+            MSG="${MSG} [skip promote] (qa branch)"
+          fi
+          git commit -m "${MSG}"
           git push origin main
