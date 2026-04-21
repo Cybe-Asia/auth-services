@@ -27,9 +27,11 @@ mod handlers {
     pub mod auth_handler;
 }
 mod models {
+    pub mod identity_account_model;
     pub mod user_model;
 }
 mod repositories {
+    pub mod identity_account_repository;
     pub mod user_repository;
 }
 mod routes {
@@ -126,7 +128,7 @@ async fn main() {
     );
 
     let auth_service =
-        services::auth_service::AuthService::new(graph, config.jwt_secret.clone(), google_client);
+        services::auth_service::AuthService::new(graph, config.jwt_secret.clone(), config.jwt_session_expiry, google_client);
     let state = AppState { auth_service };
 
     let app: Router = routes::auth_routes::auth_routes()

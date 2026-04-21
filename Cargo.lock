@@ -49,6 +49,7 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "bcrypt",
+ "chrono",
  "dotenv",
  "jsonwebtoken",
  "neo4rs",
@@ -233,6 +234,7 @@ dependencies = [
  "iana-time-zone",
  "js-sys",
  "num-traits",
+ "serde",
  "wasm-bindgen",
  "windows-link",
 ]

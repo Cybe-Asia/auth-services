@@ -3,6 +3,7 @@ use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct GoogleTokenInfoResponse {
+    pub sub: Option<String>,
     pub email: Option<String>,
     pub error: Option<String>,
     pub error_description: Option<String>,

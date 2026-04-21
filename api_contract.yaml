@@ -1,0 +1,236 @@
+openapi: 3.0.0
+info:
+  title: Auth Service API
+  version: 0.1.0
+  description: API Authentication and account management for Cybe
+servers:
+  - url: "http://localhost:8083"
+    description: Local Development Server
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        responseCode:
+          type: integer
+          example: 200
+        responseMessage:
+          type: string
+          example: "success"
+        responseError:
+          type: string
+          nullable: true
+          example: null
+        data:
+          type: object
+          nullable: true
+
+    CreateAccountRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+
+    CreateAccountResponseData:
+      type: object
+      properties:
+        email:
+          type: string
+        jwtSessionToken:
+          type: string
+
+    CreatePasswordRequest:
+      type: object
+      required:
+        - newPassword
+      properties:
+        newPassword:
+          type: string
+
+    CreatePasswordResponseData:
+      type: object
+      properties:
+        passwordCreated:
+          type: boolean
+
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+
+    LoginResponseData:
+      type: object
+      properties:
+        jwtAccessToken:
+          type: string
+        refreshToken:
+          type: string
+
+    GoogleLoginRequest:
+      type: object
+      required:
+        - googleToken
+      properties:
+        googleToken:
+          type: string
+
+    GoogleLoginResponseData:
+      type: object
+      properties:
+        identityAccountId:
+          type: string
+          description: Unique account identifier
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        accountType:
+          type: string
+          enum: [google, basic_portal]
+          description: Type of authentication
+          example: "google"
+        username:
+          type: string
+          description: Login username or email
+          example: "john.doe@gmail.com"
+        externalSubjectId:
+          type: string
+          description: ID from external provider (e.g., Google OAuth ID)
+          example: "google-oauth2|123456"
+        status:
+          type: string
+          description: Account status
+          example: "active"
+        lastLoginAt:
+          type: string
+          format: date-time
+          description: Last successful login timestamp
+          example: "2026-04-10T11:00:00Z"
+        jwtAccessToken:
+          type: string
+        refreshToken:
+          type: string
+
+paths:
+  /api/v1/auth-service/createAccount:
+    post:
+      summary: Create a new account
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAccountRequest'
+      responses:
+        '200':
+          description: Account created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CreateAccountResponseData'
+        '409':
+          description: Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '500':
+          description: Internal server error
+          
+  /api/v1/auth-service/createPassword:
+    post:
+      summary: Create new password after account creation
+      tags:
+        - auth
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePasswordRequest'
+      responses:
+        '200':
+          description: Password created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CreatePasswordResponseData'
+        '500':
+          description: Internal server error
+
+  /api/v1/auth-service/login:
+    post:
+      summary: Login with email and password
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/LoginResponseData'
+        '500':
+          description: Login failed
+
+  /api/v1/googleLogin:
+    post:
+      summary: Login with Google OAuth token
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoogleLoginRequest'
+      responses:
+        '200':
+          description: Google login successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/GoogleLoginResponseData'
+        '500':
+          description: Google login failed

@@ -16,6 +16,8 @@ use crate::{
 #[derive(Serialize, ToSchema)]
 pub struct CreateAccountData {
     pub email: String,
+    #[serde(rename = "jwtSessionToken")]
+    pub jwt_session_token: String,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -34,8 +36,20 @@ pub struct LoginData {
 
 #[derive(Serialize, ToSchema)]
 pub struct GoogleLoginData {
+    #[serde(rename = "identityAccountId")]
+    pub identity_account_id: String,
+    #[serde(rename = "accountType")]
+    pub account_type: String,
+    pub username: String,
+    #[serde(rename = "externalSubjectId")]
+    pub external_subject_id: String,
+    pub status: String,
+    #[serde(rename = "lastLoginAt")]
+    pub last_login_at: String,
     #[serde(rename = "jwtAccessToken")]
     pub jwt_access_token: String,
+    #[serde(rename = "refreshToken")]
+    pub refresh_token: String,
 }
 
 fn extract_bearer_token(headers: &HeaderMap) -> Result<String, String> {
@@ -59,7 +73,7 @@ fn extract_bearer_token(headers: &HeaderMap) -> Result<String, String> {
     request_body = CreateAccountRequest,
     responses(
         (status = 200, description = "Account created successfully", body = ApiResponseCreateAccount),
-        (status = 204, description = "Email already exists"),
+        (status = 409, description = "Email already exists", body = ApiResponseCreateAccount),
         (status = 500, description = "Internal server error", body = ApiResponseCreateAccount)
     )
 )]
@@ -68,14 +82,15 @@ pub async fn create_account(
     Json(payload): Json<CreateAccountRequest>,
 ) -> axum::response::Response {
     match state.auth_service.create_account(&payload.email).await {
-        Ok(CreateAccountResult::Created) => {
+        Ok(CreateAccountResult::Created(tokens)) => {
             ApiResponse::success(CreateAccountData {
-                email: payload.email,
+                email: tokens.email,
+                jwt_session_token: tokens.jwt_session_token,
             })
             .into_response()
         }
         Ok(CreateAccountResult::AlreadyExists) => {
-            axum::http::StatusCode::NO_CONTENT.into_response()
+            ApiResponse::<CreateAccountData>::failure(409, "email already exist").into_response()
         }
         Err(e) => ApiResponse::<CreateAccountData>::failure(500, e).into_response(),
     }
@@ -156,7 +171,24 @@ pub async fn google_login(
     Json(payload): Json<GoogleLoginRequest>,
 ) -> Json<ApiResponse<GoogleLoginData>> {
     match state.auth_service.google_login(&payload.google_token).await {
-        Ok(jwt_access_token) => ApiResponse::success(GoogleLoginData { jwt_access_token }),
+        Ok(result) => {
+            let account = result.identity_account;
+            ApiResponse::success(GoogleLoginData {
+                identity_account_id: account.identity_account_id,
+                account_type: account.account_type.to_string(),
+                username: account.username,
+                external_subject_id: account
+                    .external_subject_id
+                    .unwrap_or_default(),
+                status: account.status,
+                last_login_at: account
+                    .last_login_at
+                    .unwrap_or_default(),
+                jwt_access_token: result.jwt_access_token,
+                refresh_token: result.refresh_token,
+            })
+        }
         Err(e) => ApiResponse::failure(500, e),
     }
 }
+
