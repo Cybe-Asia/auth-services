@@ -7,7 +7,8 @@ use utoipa::ToSchema;
     ApiResponseCreateAccount = ApiResponse<crate::handlers::auth_handler::CreateAccountData>,
     ApiResponseCreatePassword = ApiResponse<crate::handlers::auth_handler::CreatePasswordData>,
     ApiResponseLogin = ApiResponse<crate::handlers::auth_handler::LoginData>,
-    ApiResponseGoogleLogin = ApiResponse<crate::handlers::auth_handler::GoogleLoginData>
+    ApiResponseGoogleLogin = ApiResponse<crate::handlers::auth_handler::GoogleLoginData>,
+    ApiResponseAccountStatus = ApiResponse<crate::handlers::auth_handler::AccountStatusData>
 )]
 pub struct ApiResponse<T>
 where

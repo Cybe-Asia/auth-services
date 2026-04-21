@@ -1,6 +1,6 @@
-use axum::{extract::State, http::HeaderMap, response::IntoResponse, Json};
-use serde::Serialize;
-use utoipa::ToSchema;
+use axum::{extract::{Query, State}, http::HeaderMap, response::IntoResponse, Json};
+use serde::{Deserialize, Serialize};
+use utoipa::{IntoParams, ToSchema};
 
 use crate::{
     dto::{
@@ -36,6 +36,38 @@ pub struct LoginData {
 pub struct GoogleLoginData {
     #[serde(rename = "jwtAccessToken")]
     pub jwt_access_token: String,
+}
+
+#[derive(Deserialize, IntoParams)]
+pub struct AccountStatusQuery {
+    pub email: String,
+}
+
+#[derive(Serialize, ToSchema)]
+pub struct AccountStatusData {
+    pub exists: bool,
+    #[serde(rename = "hasPassword")]
+    pub has_password: bool,
+}
+
+/// Check whether an email is already registered and whether a password is set.
+#[utoipa::path(
+    get,
+    path = "/api/v1/auth-service/accountStatus",
+    params(AccountStatusQuery),
+    responses(
+        (status = 200, description = "Account status retrieved", body = ApiResponseAccountStatus),
+        (status = 500, description = "Internal server error", body = ApiResponseAccountStatus)
+    )
+)]
+pub async fn account_status(
+    State(state): State<AppState>,
+    Query(query): Query<AccountStatusQuery>,
+) -> Json<ApiResponse<AccountStatusData>> {
+    match state.auth_service.account_status(&query.email).await {
+        Ok((exists, has_password)) => ApiResponse::success(AccountStatusData { exists, has_password }),
+        Err(e) => ApiResponse::failure(500, e),
+    }
 }
 
 fn extract_bearer_token(headers: &HeaderMap) -> Result<String, String> {

@@ -35,6 +35,14 @@ impl AuthService {
         }
     }
 
+    pub async fn account_status(&self, email: &str) -> Result<(bool, bool), String> {
+        let user = user_repository::find_user_by_email(self.graph.as_ref(), email).await?;
+        match user {
+            None => Ok((false, false)),
+            Some(u) => Ok((true, u.password_hash.is_some())),
+        }
+    }
+
     pub async fn create_account(&self, email: &str) -> Result<CreateAccountResult, String> {
         info!(email = %email, "create account attempt");
 

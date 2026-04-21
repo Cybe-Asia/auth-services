@@ -70,20 +70,29 @@ pub async fn update_password(
     email: &str,
     password_hash: &str,
 ) -> Result<User, String> {
+    // MERGE so the User node is created on first password set
+    // (previously accounts were created at OTP-verify time; that step is gone).
+    let new_id = Uuid::new_v4().to_string();
     let mut result = graph
         .execute(
-            query("MATCH (u:User {email: $email}) SET u.passwordHash = $passwordHash RETURN u")
-                .param("email", email)
-                .param("passwordHash", password_hash),
+            query(
+                "MERGE (u:User {email: $email}) \
+                 ON CREATE SET u.id = $id, u.createdAt = datetime(), u.passwordHash = $passwordHash \
+                 ON MATCH SET u.passwordHash = $passwordHash \
+                 RETURN u",
+            )
+            .param("email", email)
+            .param("id", new_id)
+            .param("passwordHash", password_hash),
         )
         .await
-        .map_err(|e| format!("neo4j update password failed: {e}"))?;
+        .map_err(|e| format!("neo4j upsert password failed: {e}"))?;
 
     let row = result
         .next()
         .await
         .map_err(|e| format!("neo4j result read failed: {e}"))?
-        .ok_or_else(|| "User not found".to_string())?;
+        .ok_or_else(|| "unexpected empty result from upsert".to_string())?;
 
     let node: Node = row
         .get("u")

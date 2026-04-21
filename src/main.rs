@@ -58,6 +58,7 @@ pub struct AppState {
         handlers::auth_handler::create_password,
         handlers::auth_handler::login,
         handlers::auth_handler::google_login,
+        handlers::auth_handler::account_status,
     ),
     components(
         schemas(
@@ -69,10 +70,12 @@ pub struct AppState {
             handlers::auth_handler::CreatePasswordData,
             handlers::auth_handler::LoginData,
             handlers::auth_handler::GoogleLoginData,
+            handlers::auth_handler::AccountStatusData,
             utils::response::ApiResponseCreateAccount,
             utils::response::ApiResponseCreatePassword,
             utils::response::ApiResponseLogin,
             utils::response::ApiResponseGoogleLogin,
+            utils::response::ApiResponseAccountStatus,
         )
     ),
     modifiers(&SecurityAddon),
