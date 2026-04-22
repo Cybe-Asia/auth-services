@@ -1,3 +1,6 @@
 /target
 .env
 .env.local
+
+# Local working notes — personal scratchpad per engineer
+CLAUDE.md
